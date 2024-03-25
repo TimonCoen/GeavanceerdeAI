@@ -1,4 +1,3 @@
-import javax.swing.text.html.StyleSheet;
 import java.io.*;
 import java.util.*;
 
@@ -68,5 +67,17 @@ public class InputReader {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public ArrayList<ArrayList<Integer>> getDist() {
+        return this.dist;
+    }
+
+    public ArrayList<ArrayList<Integer>> getOpponents() {
+        return this.opponents;
+    }
+
+    public int getnTeams() {
+        return this.nTeams;
     }
 }
