@@ -2,12 +2,14 @@ import java.io.*;
 import java.util.*;
 
 public class InputReader {
+    private ArrayList<ArrayList<Integer>> dist;
+    private ArrayList<ArrayList<Integer>> opponents;
+    private int nTeams;
 
-    public static void main(String[] args) {
-        String fileName = "instances/umps8.txt"; // Replace this with the path to your file
-        ArrayList<ArrayList<Integer>> dist = new ArrayList<>();
-        ArrayList<ArrayList<Integer>> opponents = new ArrayList<>();
-        int nTeams = 0;
+    public InputReader(String fileName) {
+        dist = new ArrayList<>();
+        opponents = new ArrayList<>();
+        nTeams = 0;
 
         try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
             String line;
@@ -67,6 +69,7 @@ public class InputReader {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
     public ArrayList<ArrayList<Integer>> getDist() {
