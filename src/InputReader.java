@@ -52,19 +52,19 @@ public class InputReader {
                 }
             }
 
-            // Display number of teams
-            System.out.println("nTeams = " + nTeams + "\n");
-
-            // Display matrices for verification
-            System.out.println("Dist Matrix:");
-            for (ArrayList<Integer> row : dist) {
-                System.out.println(row);
-            }
-
-            System.out.println("\nOpponents Matrix:");
-            for (ArrayList<Integer> row : opponents) {
-                System.out.println(row);
-            }
+//            // Display number of teams
+//            System.out.println("nTeams = " + nTeams + "\n");
+//
+//            // Display matrices for verification
+//            System.out.println("Dist Matrix:");
+//            for (ArrayList<Integer> row : dist) {
+//                System.out.println(row);
+//            }
+//
+//            System.out.println("\nOpponents Matrix:");
+//            for (ArrayList<Integer> row : opponents) {
+//                System.out.println(row);
+//            }
 
         } catch (IOException e) {
             e.printStackTrace();

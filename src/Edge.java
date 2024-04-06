@@ -17,6 +17,10 @@ public Edge(Game source, Game destination, int distance){
         this.source = source;
     }
 
+    public int getDistance() {
+        return distance;
+    }
+
     public void setDistance(int distance) {
         this.distance = distance;
     }

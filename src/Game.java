@@ -14,12 +14,23 @@ public class Game {
         edges = new ArrayList<>();
     }
 
+    public Game(Game game){
+        this.home = game.home;
+        this.out = game.out;
+        this.round = game.round;
+        this.edges = game.edges;
+    }
+
     public void addEdge(Edge edge){
         edges.add(edge);
     }
 
     public ArrayList getEdges(){
         return edges;
+    }
+
+    public int getDistance(){
+        return getDistance();
     }
 
     public String toString(){
