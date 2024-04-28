@@ -502,7 +502,7 @@ public class Main {
             System.out.println("Distance: "+sumSolution);
             System.out.println("Successfully wrote to the file: solution"+"_"+instanceName+"_"+q1+"_"+q2+".txt");
             System.out.println("Time: " + (System.currentTimeMillis()-startTime)/1000.0 + " s");
-            FileWriter wr = new FileWriter("increment_"+instanceName+"_"+q1+"_"+q2+".txt", true);
+            FileWriter wr = new FileWriter("increment_"+instanceName+"_"+q1+"_"+q2+"_"+method+"_"+parallel+".txt", true);
             wr.write(((System.currentTimeMillis()-startTime)/1000.0)+","+sumSolution+"\n");
             wr.close();
         } catch (IOException e) {
@@ -523,14 +523,14 @@ public class Main {
         }
         else {
             startTime = System.currentTimeMillis();
-            instanceName = "umps8";
+            instanceName = "umps10";
             tournament = makeTournament("instances/"+instanceName+".txt");
-            q1 = 4;
+            q1 = 5;
             q2 = 2;
 //            method = "BranchBound";
             method = "RoundBound";
-            parallel = true;
-//            parallel = false;
+//            parallel = true;
+            parallel = false;
         }
         ArrayList<Umpire> umpires = new ArrayList<>();
         for (int i=1; i<=nteams/2; i++){
@@ -540,7 +540,7 @@ public class Main {
             umpires.get(g).addGameToSchedule(tournament.get(g), 0);
         }
         try{
-            FileWriter wr = new FileWriter("increment_"+instanceName+"_"+q1+"_"+q2+".txt");
+            FileWriter wr = new FileWriter("increment_"+instanceName+"_"+q1+"_"+q2+"_"+method+"_"+parallel+".txt");
             wr.close();
         } catch (IOException e) {System.err.println("Error writing to the file: " + e.getMessage());}
 //        boostSolution();
