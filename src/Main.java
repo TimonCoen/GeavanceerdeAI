@@ -19,6 +19,7 @@ public class Main {
     static String instanceName;
     static boolean parallel;
     static boolean fancyLB;
+    static boolean hungarian;
 
     private static ArrayList<Game> makeTournament(String fileName){
         InputReader inputReader = new InputReader(fileName);
@@ -216,12 +217,13 @@ public class Main {
     }
 
     public static int h(ArrayList<Umpire> umpires, int u, int r){
+        if (!hungarian) return 0;
         if (nteams/2==u+1) return 0;
         int [] visited = new int[nteams];
         for (int a=0; a<=u; a++){
             visited[umpires.get(a).schedule.get(r).home-1] = 1;
         }
-        System.out.println("distance.length: "+(nteams/2-u-1));
+//        System.out.println("distance.length: "+(nteams/2-u-1));
         int [][] distances = new int[nteams/2-u-1][nteams/2-u-1];
         for (int ss1=0; ss1<nteams/2-u-1; ss1++){
             for (int ss2=0; ss2<nteams/2-u-1; ss2++){
@@ -239,22 +241,38 @@ public class Main {
                     i.put(e.destination.home-1, startIndex++);
 //                    System.out.println("put: "+i.get(e.destination.home-1));
                 }
-                System.out.println("distances["+(a-u-1)+"]["+i.get(e.destination.home-1)+"] = "+e.distance);
-                distances[a-u-1][i.get(e.destination.home-1)] = e.distance;
-                dirty = true;
+//                System.out.println("distances["+(a-u-1)+"]["+i.get(e.destination.home-1)+"] = "+e.distance);
+                if (isFeasable(e.destination, umpires.get(a), umpires)){
+                    distances[a-u-1][i.get(e.destination.home-1)] = e.distance;
+                    dirty = true;
+                }
             }
             if (!dirty) return Integer.MAX_VALUE;
         }
         if (nteams/2-u-1==1) return distances[0][0];
-        Hungarian hungarian = new Hungarian(distances);
-        int [] assignment = hungarian.findOptimalAssignment();
-        System.out.println("Array: ");
-        int sum = 0;
-        for (int l=0; l<assignment.length; l++){
-            System.out.println(distances[l][assignment[l]]);
-            sum += distances[l][assignment[l]];
+        int [][] newdistances = new int[nteams/2-u-1][nteams/2-u-1];
+        for (int h=0; h<distances.length; h++){
+            for (int g=0; g<distances.length; g++){
+                newdistances[h][g] = distances[h][g];
+            }
         }
-        System.out.println("sum: "+sum);
+//        Hungarian hungarian = new Hungarian(new int[][]{distances});
+        HungarianAlgorithm hungarianAlgorithm = new HungarianAlgorithm();
+        //int [] assignment = hungarian.findOptimalAssignment();
+        int[][] assignments = hungarianAlgorithm.computeAssignments(distances);
+//        System.out.println("Array: ");
+        int sum = 0;
+        for (int h=0; h<assignments.length; h++){
+            for (int g=0; g<assignments[0].length; g++){
+//                System.out.print(assignments[h][g]+" ");
+            }
+//            System.out.println();
+        }
+        for (int l=0; l<assignments.length; l++){
+//            System.out.println("distances: "+newdistances[assignments[l][0]][assignments[l][1]]);//0!
+            sum += newdistances[assignments[l][0]][assignments[l][1]];//0!
+        }
+//        System.out.println("sum: "+sum);
         return sum;
     }
 
@@ -269,7 +287,7 @@ public class Main {
             edges.add(e);
             if (rp!=r+1){
                 if (homeTownFeasable(umpires.get(u))<=(nteams*2-2)-r){
-                    if (sumUmpires(umpires)+LB[r][nteams*2-3]/*+h(umpires, u, r)*/<=sumSolution() || sumSolution()==0){
+                    if (sumSolution()==0 || sumUmpires(umpires)+LB[r][nteams*2-3]+h(umpires, u, r)<=sumSolution()){
                         solution = jamesBound(umpires, up, rp, solution, edges);
                     }
                 }
@@ -351,6 +369,84 @@ public class Main {
         return sortedKeys;
     }
 
+    public static void HungarianRound(ArrayList<Umpire> umpires, int r){
+        //make distanceMatrix + translator
+        int[][] distanceMatrix = new int[umpires.size()][umpires.size()];
+        //initialise on MaxInt
+        for (int a=0; a<umpires.size(); a++){
+            for (int b=0; b<umpires.size(); b++){
+                distanceMatrix[a][b] = Integer.MAX_VALUE;
+            }
+        }
+        //Fill in distances
+        int startIndex = 0;
+        Map<Integer, Integer> i = new HashMap<>();
+        for (int a=0; a<nteams/2; a++){
+            boolean dirty = false;
+            for (Edge e: umpires.get(a).schedule.get(r-1).edges){
+                if (!i.containsKey(e.destination.home-1)){
+                    i.put(e.destination.home-1, startIndex++);
+                }
+                distanceMatrix[a][i.get(e.destination.home-1)] = e.distance;
+                dirty = true;
+            }
+            if (!dirty) return;
+        }
+        //Put constraints to MaxInt
+        for (int u=0; u<umpires.size(); u++){
+            for (Edge e: umpires.get(u).schedule.get(r-1).edges){
+                if (!isFeasable(e.destination, umpires.get(u), umpires)) distanceMatrix[u][i.get(e.destination.home-1)] = Integer.MAX_VALUE;
+            }
+        }
+        HungarianAlgorithm hungarianAlgorithm = new HungarianAlgorithm();
+        //while true????
+        boolean feasable = true;
+        while (feasable){
+            int [][] newdistances = new int[nteams/2][nteams/2];
+            for (int h=0; h<distanceMatrix.length; h++){
+                for (int g=0; g<distanceMatrix.length; g++){
+                    newdistances[h][g] = distanceMatrix[h][g];
+                }
+            }
+            int[][] assignments = hungarianAlgorithm.computeAssignments(newdistances);
+            for (int a=0; a<assignments.length; a++){
+                int theEDGE = 0;
+                int ei = 0;
+                for (Edge e: umpires.get(assignments[a][0]).schedule.get(r-1).edges){
+                    if (i.get(e.destination.home-1)==assignments[a][1]) theEDGE = ei;
+                    ei++;
+                }
+                umpires.get(assignments[a][0]).addGameToSchedule(umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).destination, umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance);
+                if (umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance==Integer.MAX_VALUE) feasable = false;
+            }
+            if (feasable){
+                if (r+1!=nteams*2-2){
+                    if (sumUmpires(umpires)+LB[r][nteams*2-3]<=sumSolution() || sumSolution()==0){
+                        HungarianRound(umpires, r+1);
+                    }
+                }
+                else{
+                    if (fullFeasable(umpires) && checkForBetterSolution(umpires, false)){
+                        solution.clear();
+                        for (Umpire ump: umpires){
+                            solution.add(new Umpire(ump));
+                        }
+                        if (verbose) writeToFile(solution);
+                    }
+                }
+            }
+            for (int a=0; a<assignments.length; a++){
+                int theEDGE = 0;
+                int ei = 0;
+                for (Edge e: umpires.get(assignments[a][0]).schedule.get(r-1).edges){
+                    if (i.get(e.destination.home-1)==assignments[a][1]) theEDGE = ei;
+                    ei++;
+                }
+                umpires.get(assignments[a][0]).removeFromSchedule(umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).destination, umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance);
+            }
+        }
+    }
+
     public static void RoundBound(ArrayList<Umpire> umpires, int r){
         ArrayList<ArrayList<Edge>> A = sortedPossibleSolutions(umpires, r);
         //if (!checkForBetterSolution(umpires, false)) return;
@@ -391,7 +487,7 @@ public class Main {
             if (rp!=nteams*2-2){
                 //if (!checkForBetterSolution(umpires, false)) continue;
                 if (homeTownFeasable(umpires.get(u))<=(nteams*2-2)-r){
-                    if (sumUmpires(umpires)+LB[r][nteams*2-3]/*+h(umpires, u, r)*/<=sumSolution() || sumSolution()==0){
+                    if (sumSolution()==0 || sumUmpires(umpires)+LB[r][nteams*2-3]+h(umpires, u, r)<=sumSolution()){
                         BranchBound(umpires, up, rp);
                     }
                 }
@@ -445,7 +541,7 @@ public class Main {
             umpires.get(u).addGameToSchedule(e.destination, e.distance);
             if (rp!=rr){
                 //if (!checkForBetterSolution(umpires, false)) continue;
-                if (thisSolution + LB[r+1][rr] <= S[ir][rr] || S[ir][rr]==0)
+                if (thisSolution + LB[r+1][rr] /*+ h(umpires, u, r)*/ <= S[ir][rr] || S[ir][rr]==0)
                     MatchBound(umpires, up, rp, ir, rr, thisSolution);
             }
             else{
@@ -502,7 +598,7 @@ public class Main {
         if (fancyLB) MatchRound(umpireGang, round, round, maxround, 0);
     }
 
-    public static void fakeCalculateLBs() {
+    public static void iniatiliseCalculateLBs() {
         S = new int[nteams * 2 - 2][nteams * 2 - 2];
         LB = new int[nteams * 2 - 2][nteams * 2 - 2];
     }
@@ -534,8 +630,8 @@ public class Main {
     }
 
     public static void CalculateLBs(){
-        S = new int[nteams*2-2][nteams*2-2];
-        LB = new int[nteams*2-2][nteams*2-2];
+//        S = new int[nteams*2-2][nteams*2-2];
+//        LB = new int[nteams*2-2][nteams*2-2];
         for (int r=nteams*2-4; r>-1; r--){
             if (S[r][r+1] == 0) calculateMatching(r, r+1);
             //S[r][r+1] = 0; //value of matching between rounds r and r+1 => solution => games??//tournament??
@@ -556,6 +652,29 @@ public class Main {
                 }
                 r -= k; //k? //1
             }
+        }
+//        for (int a= 0; a < LB.length; a++){
+//            for (int b= 0; b < LB.length; b++){
+//                System.out.print(LB[a][b]+" ");
+//            }
+//            System.out.println();
+//        }
+    }
+
+    public static void CalculateWeakLBs(){
+//        S = new int[nteams*2-2][nteams*2-2];
+//        LB = new int[nteams*2-2][nteams*2-2];
+        for (int r=nteams*2-4; r>-1; r--){
+            if (S[r][r+1] == 0) calculateMatching(r, r+1);
+        }
+        for (int r=nteams*2-4; r>-1; r--){
+            LB[r][nteams*2-3] = S[r][r+1] + LB[r+1][nteams*2-3];
+        }
+        for (int a= 0; a < LB.length; a++){
+            for (int b= 0; b < LB.length; b++){
+                System.out.print(LB[a][b]+" ");
+            }
+            System.out.println();
         }
     }
 
@@ -586,7 +705,7 @@ public class Main {
 
     public static void main(String[] args) {
         // java Main instances/umps8.txt umps8 q1 q2 branchBound/roundBound parallel fancyLB
-        if (args.length == 6){
+        if (args.length == 7){
             startTime = System.currentTimeMillis();
             tournament = makeTournament(args[0]);
             instanceName = args[1];
@@ -594,20 +713,24 @@ public class Main {
             q2 = Integer.parseInt(args[3]);
             method = args[4];
             parallel = !Objects.equals(args[5], "false");
-            fancyLB = !Objects.equals(args[5], "classic");
+            fancyLB = !Objects.equals(args[6], "classic");
+            hungarian = false;
         }
         else {
             startTime = System.currentTimeMillis();
             instanceName = "umps14";
             tournament = makeTournament("instances/"+instanceName+".txt");
-            q1 = 7;
-            q2 = 2;
+            q1 = 8;
+            q2 = 3;
 //            method = "BranchBound";
             method = "RoundBound";
+//            method = "HungarianRound";
             parallel = true;
 //            parallel = false;
             fancyLB = true;
 //            fancyLB = false;
+//            hungarian = true;
+            hungarian = false;
         }
         ArrayList<Umpire> umpires = new ArrayList<>();
         for (int i=1; i<=nteams/2; i++){
@@ -623,15 +746,16 @@ public class Main {
             wr.close();
         } catch (IOException e) {System.err.println("Error writing to the file: " + e.getMessage());}
 //        boostSolution();
+        iniatiliseCalculateLBs();
         if (parallel){
             LBThread lbt = new LBThread();
             lbt.start();
-            fakeCalculateLBs();
         }
         if (!parallel) CalculateLBs();
         //long BBstartTime = System.currentTimeMillis();
         if (Objects.equals(method, "BranchBound")) BranchBound(umpires, 0, 1);
         if (Objects.equals(method, "RoundBound")) RoundBound(umpires, 1);
+        if (Objects.equals(method, "HungarianRound")) HungarianRound(umpires, 1);
 //        ArrayList<Umpire> umpires1 = new ArrayList<>();
 //        ArrayList<Umpire> umpires2 = new ArrayList<>();
 //        for (Umpire u: umpires){
