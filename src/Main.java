@@ -21,7 +21,9 @@ public class Main {
     static boolean parallel;
     static boolean fancyLB;
     static boolean hungarian;
+    static boolean partialLB;
     static ArrayList<ArrayList<Edge>>[] UpperA;
+    static ArrayList<ArrayList<Integer>> DDDistance = new ArrayList<>();
 
     private static ArrayList<Game> makeTournament(String fileName){
         InputReader inputReader = new InputReader(fileName);
@@ -52,6 +54,34 @@ public class Main {
             roundCounter++;
         }
         return tournament;
+    }
+
+    public static void calculatePartialBounds(){
+        for (int i=0; i<nteams*2-2; i++){
+            DDDistance.add(new ArrayList<>());
+        }
+//        for(Game g: tournament){
+//            for (Edge e: g.edges){
+//                DDDistance.get(g.round).add(e.distance);
+//            }
+//        }
+        for(Game g: tournament){
+            Collections.sort(g.edges, Comparator.comparingInt(Edge::getDistance));
+            if (g.edges.size()==0){
+                System.out.println("problem");
+                DDDistance.get(g.round).add(0);
+                continue;
+            }
+            DDDistance.get(g.round).add(g.edges.get(0).distance);
+        }
+        //sort distances
+//        for (int i=1; i<nteams*2-2; i++){
+//            DDDistance.get(i).stream().sorted();
+//        }
+        for (ArrayList<Integer> list : DDDistance) {
+            Collections.sort(list);
+        }
+        System.out.println("Completed");
     }
 
     public static void boostSolution(int distance){
@@ -219,8 +249,19 @@ public class Main {
         return sumSolution;
     }
 
+    public static int hL(ArrayList<Umpire> umpires, int u, int r){
+        if (!hungarian) return 0;
+        if (!partialLB) return 0;
+        int sum = 0;
+        for (int i=0; i<umpires.size()-u-1; i++){
+            sum += DDDistance.get(r).get(i);
+        }
+        return sum;
+    }
+
     public static int h(ArrayList<Umpire> umpires, int u, int r){
         if (!hungarian) return 0;
+        if (partialLB) return hL(umpires, u, r);
         if (nteams/2==u+1) return 0;
         int [] visited = new int[nteams];
         for (int a=0; a<=u; a++){
@@ -315,7 +356,7 @@ public class Main {
             umpires.get(u).addGameToSchedule(e.destination, e.distance);
             edges.add(e);
             if (rp!=r+1){
-                if (sumUmpires(umpires)+LB[r+1][rr]/*+h(umpires, u, r)*/<=S[ir][rr] || S[ir][rr]==0){ //solution
+                if (sumUmpires(umpires)+LB[r+1][rr]+hL(umpires, u, r)<=S[ir][rr] || S[ir][rr]==0){ //solution
                     solution = jBound(umpires, up, rp, ir, rr, solution, edges); //solution!!
                 }
             }
@@ -749,18 +790,14 @@ public class Main {
                 r -= k; //k? //1
             }
             writeLBToFile();
-//            for (int a= 0; a < LB.length; a++) {
-//                for (int b = 0; b < LB.length; b++) {
-//                    System.out.print(LB[a][b] + " ");
-//                }
-//                System.out.println();
-//            }
+            writeSToFile();
+            writeIncrementLBToFile();
         }
     }
 
     public static void writeLBToFile(){
         try{
-            FileWriter writer = new FileWriter("LB_"+instanceName+"_"+q1+"_"+q2+".txt");
+            FileWriter writer = new FileWriter("LB_"+instanceName+"_"+q1+"_"+q2+"_"+hungarian+"_"+partialLB+".txt");
             for (int a= 0; a < LB.length; a++) {
                 for (int b = 0; b < LB.length; b++) {
                     writer.write(LB[a][b] + " ");
@@ -770,6 +807,31 @@ public class Main {
             writer.close();
         } catch (IOException e) {
         System.err.println("Error writing to the file: " + e.getMessage());
+        }
+    }
+
+    public static void writeSToFile(){
+        try{
+            FileWriter writer = new FileWriter("S_"+instanceName+"_"+q1+"_"+q2+"_"+hungarian+"_"+partialLB+".txt");
+            for (int a= 0; a < S.length; a++) {
+                for (int b = 0; b < S.length; b++) {
+                    writer.write(S[a][b] + " ");
+                }
+                writer.write("\n");
+            }
+            writer.close();
+        } catch (IOException e) {
+            System.err.println("Error writing to the file: " + e.getMessage());
+        }
+    }
+
+    public static void writeIncrementLBToFile(){
+        try{
+            FileWriter writer = new FileWriter("incrementLB_"+instanceName+"_"+q1+"_"+q2+"_"+hungarian+"_"+partialLB+".txt", true);
+            writer.write(((System.currentTimeMillis()-startTime)/1000.0)+","+LB[0][nteams*2-3]+"\n");
+            writer.close();
+        } catch (IOException e) {
+            System.err.println("Error writing to the file: " + e.getMessage());
         }
     }
 
@@ -806,7 +868,7 @@ public class Main {
             System.out.println("Successfully wrote to the file: solution"+"_"+instanceName+"_"+q1+"_"+q2+".txt");
             System.out.println("Time: " + (System.currentTimeMillis()-startTime)/1000.0 + " s");
             String fname = "increment_"+instanceName+"_"+q1+"_"+q2+"_"+method+"_"+parallel+".txt";
-            if (fancyLB) fname = "increment_"+instanceName+"_"+q1+"_"+q2+"_"+method+"_"+parallel+"_new.txt";
+            if (fancyLB) fname = "increment_"+instanceName+"_"+q1+"_"+q2+"_"+method+"_"+parallel+"_"+hungarian+"_"+partialLB+".txt";
             FileWriter wr = new FileWriter(fname, true);
             wr.write(((System.currentTimeMillis()-startTime)/1000.0)+","+sumSolution+"\n");
             wr.close();
@@ -818,7 +880,7 @@ public class Main {
     public static void main(String[] args) {
         // java Main instances/umps8.txt umps8 q1 q2 branchBound/roundBound parallel fancyLB
         int boostsln = 0;
-        if (args.length == 9){
+        if (args.length == 10){
             startTime = System.currentTimeMillis();
             tournament = makeTournament(args[0]);
             instanceName = args[1];
@@ -827,12 +889,13 @@ public class Main {
             method = args[4];
             parallel = !Objects.equals(args[5], "false");
             fancyLB = !Objects.equals(args[6], "classic");
-            hungarian = !Objects.equals(args[7], "hungarian");
-            boostsln = Integer.parseInt(args[8]);
+            hungarian = Objects.equals(args[7], "hungarian");
+            partialLB = Objects.equals(args[8], "partialLB");
+            boostsln = Integer.parseInt(args[9]);
         }
         else {
             startTime = System.currentTimeMillis();
-            instanceName = "umps14";
+            instanceName = "umps12";
             tournament = makeTournament("instances/"+instanceName+".txt");
             q1 = 7;
             q2 = 2;
@@ -844,8 +907,10 @@ public class Main {
 //            parallel = false;
             fancyLB = true;
 //            fancyLB = false;
-//            hungarian = true;
-            hungarian = false;
+            hungarian = true;
+//            hungarian = false;
+            partialLB = true;
+//            partialLB = false;
         }
         ArrayList<Umpire> umpires = new ArrayList<>();
         for (int i=1; i<=nteams/2; i++){
@@ -856,10 +921,13 @@ public class Main {
         }
         try{
             String fname = "increment_"+instanceName+"_"+q1+"_"+q2+"_"+method+"_"+parallel+".txt";
-            if (fancyLB) fname = "increment_"+instanceName+"_"+q1+"_"+q2+"_"+method+"_"+parallel+"_new.txt";
+            if (fancyLB) fname = "increment_"+instanceName+"_"+q1+"_"+q2+"_"+method+"_"+parallel+"_"+hungarian+"_"+partialLB+".txt";
             FileWriter wr = new FileWriter(fname);
             wr.close();
+            FileWriter write = new FileWriter("incrementLB_"+instanceName+"_"+q1+"_"+q2+"_"+hungarian+"_"+partialLB+".txt");
+            write.close();
         } catch (IOException e) {System.err.println("Error writing to the file: " + e.getMessage());}
+        calculatePartialBounds();
         boostSolution(boostsln);
         iniatiliseCalculateLBs();
         if (parallel){
