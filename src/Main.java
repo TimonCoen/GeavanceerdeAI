@@ -13,6 +13,7 @@ public class Main {
     //static ArrayList<Umpire> umpires = new ArrayList<>();
     static boolean solutionfound = false;
     static long nodeCount = 0;
+    static long EffectiveNodeCount = 0;
     static boolean verbose = true;
     static long startTime;
     static String method;
@@ -141,7 +142,7 @@ public class Main {
             if (!isFeasable(e.destination, umpire, umpires)) continue;
             sortedGames.add(e);
         }
-        Collections.sort(sortedGames, Comparator.comparingInt(Edge::getDistance));
+//        Collections.sort(sortedGames, Comparator.comparingInt(Edge::getDistance)); // is actually not needed?
         return sortedGames; //returns null if no feasable solutions are found
     }
 
@@ -151,7 +152,7 @@ public class Main {
             if (!skereisFeasable(e.destination, umpire, umpires, round)) continue;
             sortedGames.add(e);
         }
-        Collections.sort(sortedGames, Comparator.comparingInt(Edge::getDistance));
+//        Collections.sort(sortedGames, Comparator.comparingInt(Edge::getDistance));
         return sortedGames; //returns null if no feasable solutions are found
     }
 
@@ -542,6 +543,7 @@ public class Main {
     }
 
     public static void RoundBound(ArrayList<Umpire> umpires, int r){
+        EffectiveNodeCount += 4;
         ArrayList<ArrayList<Edge>> A = sortedPossibleSolutions(umpires, r);
         //if (!checkForBetterSolution(umpires, false)) return;
         for (ArrayList<Edge> e: A){
@@ -816,7 +818,7 @@ public class Main {
     public static void main(String[] args) {
         // java Main instances/umps8.txt umps8 q1 q2 branchBound/roundBound parallel fancyLB
         int boostsln = 0;
-        if (args.length == 7){
+        if (args.length == 9){
             startTime = System.currentTimeMillis();
             tournament = makeTournament(args[0]);
             instanceName = args[1];
@@ -825,15 +827,15 @@ public class Main {
             method = args[4];
             parallel = !Objects.equals(args[5], "false");
             fancyLB = !Objects.equals(args[6], "classic");
-            hungarian = false;
-            boostsln = Integer.parseInt(args[7]);
+            hungarian = !Objects.equals(args[7], "hungarian");
+            boostsln = Integer.parseInt(args[8]);
         }
         else {
             startTime = System.currentTimeMillis();
-            instanceName = "umps16";
+            instanceName = "umps14";
             tournament = makeTournament("instances/"+instanceName+".txt");
-            q1 = 8;
-            q2 = 3;
+            q1 = 7;
+            q2 = 2;
 //            method = "BranchBound";
             method = "RoundBound";
 //            method = "HungarianRound";
@@ -891,6 +893,7 @@ public class Main {
         //System.out.println("Preprocessing time: " + (BBstartTime-startTime)/1000.0 + " s");
         //System.out.println("BranchBound time: " + (endTime-BBstartTime)/1000.0 + " s");
         System.out.println("NodeCount: "+nodeCount);
+        System.out.println("EffectiveNodeCount: "+EffectiveNodeCount);
         if (verbose){
             for (int a= 0; a < LB.length; a++){
                 for (int b= 0; b < LB.length; b++){
