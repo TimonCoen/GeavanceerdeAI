@@ -22,6 +22,7 @@ public class Main {
     static boolean fancyLB;
     static boolean hungarian;
     static boolean partialLB;
+    static boolean useOldLBs;
     static ArrayList<ArrayList<Edge>>[] UpperA;
     static ArrayList<ArrayList<Integer>> DDDistance = new ArrayList<>();
 
@@ -78,6 +79,18 @@ public class Main {
 //        for (int i=1; i<nteams*2-2; i++){
 //            DDDistance.get(i).stream().sorted();
 //        }
+        for (ArrayList<Integer> list : DDDistance) {
+            Collections.sort(list);
+        }
+        System.out.println("Completed");
+    }
+
+    public static void calculatePartialHungarian(){
+        // one arraylist for every round
+        for (int i=0; i<nteams*2-2; i++){
+            List<Game> games = tournament.subList(i*nteams/2, (i+1)*nteams/2);
+            DDDistance.add(hList(games, i+1));
+        }
         for (ArrayList<Integer> list : DDDistance) {
             Collections.sort(list);
         }
@@ -257,6 +270,45 @@ public class Main {
             sum += DDDistance.get(r).get(i);
         }
         return sum;
+    }
+
+    public static ArrayList<Integer> hList(List<Game> games, int r){
+        ArrayList<Integer> hList = new ArrayList<>();
+        int [][] distances = new int[nteams/2][nteams/2];
+        // is deze stap nodig?
+        for (int ss1=0; ss1<nteams/2; ss1++){
+            for (int ss2=0; ss2<nteams/2; ss2++){
+                distances[ss1][ss2] = Integer.MAX_VALUE;
+            }
+        }
+        int startIndex = 0;
+        Map<Integer, Integer> i = new HashMap<>();
+        for (int a=0; a<nteams/2; a++){
+            for (Edge e: games.get(a).edges) {
+                if (!i.containsKey(e.destination.home - 1)) {
+                    i.put(e.destination.home - 1, startIndex++);
+                }
+                distances[a][i.get(e.destination.home - 1)] = e.distance;
+            }
+        }
+        // copy to a new list
+        int [][] newdistances = new int[nteams/2][nteams/2];
+        for (int h=0; h<distances.length; h++){
+            for (int g=0; g<distances.length; g++){
+                newdistances[h][g] = distances[h][g];
+            }
+        }
+        HungarianAlgorithm hungarianAlgorithm = new HungarianAlgorithm();
+        int[][] assignments = hungarianAlgorithm.computeAssignments(distances);
+        for (int h=0; h<assignments.length; h++){
+//            for (int g=0; g<assignments[0].length; g++){
+//                System.out.print(assignments[h][g]+" ");
+//            }
+//            System.out.println();
+//            System.out.println(newdistances[assignments[h][0]][assignments[h][1]]);
+            hList.add(newdistances[assignments[h][0]][assignments[h][1]]);
+        }
+        return hList;
     }
 
     public static int h(ArrayList<Umpire> umpires, int u, int r){
@@ -810,6 +862,30 @@ public class Main {
         }
     }
 
+    public static void readOldLBs(){
+        try{
+            FileReader reader = new FileReader("S_"+instanceName+"_"+q1+"_"+q2+"_"+hungarian+"_"+partialLB+".txt");
+            BufferedReader br = new BufferedReader(reader);
+            String line;
+            int row = 0;
+            while ((line = br.readLine()) != null && row < nteams * 2 - 2) {
+                String[] values = line.trim().split("\\s+");
+                for (int col = 0; col < values.length; col++) {
+                    S[row][col] = Integer.parseInt(values[col]);
+                }
+                row++;
+            }
+        } catch (IOException e) {
+            System.err.println("File \"S_"+instanceName+"_"+q1+"_"+q2+"_"+hungarian+"_"+partialLB+".txt\" does not exist: " + e.getMessage());
+        }
+        for (int i = 0; i < nteams * 2 - 2; i++) {
+            for (int j = 0; j < nteams * 2 - 2; j++) {
+                System.out.print(S[i][j] + " ");
+            }
+            System.out.println();
+        }
+    }
+
     public static void writeSToFile(){
         try{
             FileWriter writer = new FileWriter("S_"+instanceName+"_"+q1+"_"+q2+"_"+hungarian+"_"+partialLB+".txt");
@@ -880,7 +956,7 @@ public class Main {
     public static void main(String[] args) {
         // java Main instances/umps8.txt umps8 q1 q2 branchBound/roundBound parallel fancyLB
         int boostsln = 0;
-        if (args.length == 10){
+        if (args.length == 11){
             startTime = System.currentTimeMillis();
             tournament = makeTournament(args[0]);
             instanceName = args[1];
@@ -892,13 +968,14 @@ public class Main {
             hungarian = Objects.equals(args[7], "hungarian");
             partialLB = Objects.equals(args[8], "partialLB");
             boostsln = Integer.parseInt(args[9]);
+            useOldLBs = Objects.equals(args[10], "oldLB");
         }
         else {
             startTime = System.currentTimeMillis();
-            instanceName = "umps12";
+            instanceName = "umps18";
             tournament = makeTournament("instances/"+instanceName+".txt");
-            q1 = 7;
-            q2 = 2;
+            q1 = 8;
+            q2 = 4;
 //            method = "BranchBound";
             method = "RoundBound";
 //            method = "HungarianRound";
@@ -911,6 +988,9 @@ public class Main {
 //            hungarian = false;
             partialLB = true;
 //            partialLB = false;
+//            boostsln = 202662;
+//            useOldLBs = true;
+            useOldLBs = false;
         }
         ArrayList<Umpire> umpires = new ArrayList<>();
         for (int i=1; i<=nteams/2; i++){
@@ -927,9 +1007,11 @@ public class Main {
             FileWriter write = new FileWriter("incrementLB_"+instanceName+"_"+q1+"_"+q2+"_"+hungarian+"_"+partialLB+".txt");
             write.close();
         } catch (IOException e) {System.err.println("Error writing to the file: " + e.getMessage());}
-        calculatePartialBounds();
+//        calculatePartialBounds();
+        calculatePartialHungarian();
         boostSolution(boostsln);
         iniatiliseCalculateLBs();
+        if (useOldLBs) readOldLBs();
         if (parallel){
             LBThread lbt = new LBThread();
             lbt.start();
