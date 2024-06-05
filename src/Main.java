@@ -224,10 +224,10 @@ public class Main {
         for (Game g: tournament){
             homeTOWNtoVIST.set(g.home-1, homeTOWNtoVIST.get(g.home-1)+1);
         }
-        for (Integer i : homeTOWNtoVIST){
-            System.out.print(i+" ");
-        }
-        System.out.println();
+//        for (Integer i : homeTOWNtoVIST){
+//            System.out.print(i+" ");
+//        }
+//        System.out.println();
     }
 
     public static int homeTownFeasableNew(Umpire u){
@@ -1000,7 +1000,7 @@ public class Main {
         }
         else {
             startTime = System.currentTimeMillis();
-            instanceName = "umps14";
+            instanceName = "umps16";
             tournament = makeTournament("instances/"+instanceName+".txt");
             q1 = 8;
             q2 = 3;
@@ -1016,7 +1016,7 @@ public class Main {
 //            hungarian = false;
             partialLB = true;
 //            partialLB = false;
-//            boostsln = 202662;
+//            boostsln = 161999;
 //            useOldLBs = true;
             useOldLBs = false;
         }
