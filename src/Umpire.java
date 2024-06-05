@@ -30,12 +30,14 @@ public class Umpire {
         schedule.add(g);
         this.distance += distance;
         homeTownVisit.set(g.home-1, homeTownVisit.get(g.home-1)+1);
+        Main.homeTOWNtoVIST.set(g.home-1, Main.homeTOWNtoVIST.get(g.home-1)-1);
     }
 
     public void removeFromSchedule(Game g, int distance){
         schedule.remove(g);
         this.distance -= distance;
         homeTownVisit.set(g.home-1, homeTownVisit.get(g.home-1)-1);
+        Main.homeTOWNtoVIST.set(g.home-1, Main.homeTOWNtoVIST.get(g.home-1)+1);
     }
 
     @Override

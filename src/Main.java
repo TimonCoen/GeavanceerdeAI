@@ -25,6 +25,7 @@ public class Main {
     static boolean useOldLBs;
     static ArrayList<ArrayList<Edge>>[] UpperA;
     static ArrayList<ArrayList<Integer>> DDDistance = new ArrayList<>();
+    static ArrayList<Integer> homeTOWNtoVIST = new ArrayList<>();
 
     private static ArrayList<Game> makeTournament(String fileName){
         InputReader inputReader = new InputReader(fileName);
@@ -216,6 +217,27 @@ public class Main {
         return numToGoTo;
     }
 
+    public static void fillHomeTOWNtoVISIT(){
+        for (int i=0; i<nteams; i++){
+            homeTOWNtoVIST.add(0);
+        }
+        for (Game g: tournament){
+            homeTOWNtoVIST.set(g.home-1, homeTOWNtoVIST.get(g.home-1)+1);
+        }
+    }
+
+    public static int homeTownFeasableNew(Umpire u){
+        int numToGoTo = 0;
+        for (int i=0; i<nteams; i++){
+            if (u.homeTownVisit.get(i) == 0) {
+                if (homeTOWNtoVIST.get(i) == 0) return 99999;
+                numToGoTo++;
+            }
+            //check if different visits are not in the same round!!!!!!!
+        }
+        return numToGoTo;
+    }
+
     public static void fairtry(ArrayList<Umpire> umpires){
         for (int h=1; h<nteams*2-2; h++){
             for (Umpire u: umpires){
@@ -382,7 +404,7 @@ public class Main {
             umpires.get(u).addGameToSchedule(e.destination, e.distance);
             edges.add(e);
             if (rp!=r+1){
-                if (homeTownFeasable(umpires.get(u))<=(nteams*2-2)-r){
+                if (homeTownFeasableNew(umpires.get(u))<=(nteams*2-2)-r){
                     if (sumSolution()==0 || sumUmpires(umpires)+LB[r][nteams*2-3]+h(umpires, u, r)<=sumSolution()){
                         solution = jamesBound(umpires, up, rp, solution, edges);
                     }
@@ -675,7 +697,7 @@ public class Main {
             umpires.get(u).addGameToSchedule(e.destination, e.distance);
             if (rp!=nteams*2-2){
                 //if (!checkForBetterSolution(umpires, false)) continue;
-                if (homeTownFeasable(umpires.get(u))<=(nteams*2-2)-r){
+                if (homeTownFeasableNew(umpires.get(u))<=(nteams*2-2)-r){
                     if (sumSolution()==0 || sumUmpires(umpires)+LB[r][nteams*2-3]+h(umpires, u, r)<=sumSolution()){
                         BranchBound(umpires, up, rp);
                     }
@@ -974,10 +996,10 @@ public class Main {
             startTime = System.currentTimeMillis();
             instanceName = "umps18";
             tournament = makeTournament("instances/"+instanceName+".txt");
-            q1 = 8;
+            q1 = 7;
             q2 = 4;
-//            method = "BranchBound";
-            method = "RoundBound";
+            method = "BranchBound";
+//            method = "RoundBound";
 //            method = "HungarianRound";
 //            method = "GlobalRoundBound";
             parallel = true;
@@ -992,6 +1014,7 @@ public class Main {
 //            useOldLBs = true;
             useOldLBs = false;
         }
+        fillHomeTOWNtoVISIT();
         ArrayList<Umpire> umpires = new ArrayList<>();
         for (int i=1; i<=nteams/2; i++){
             umpires.add(new Umpire(i));
