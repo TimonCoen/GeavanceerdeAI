@@ -224,13 +224,19 @@ public class Main {
         for (Game g: tournament){
             homeTOWNtoVIST.set(g.home-1, homeTOWNtoVIST.get(g.home-1)+1);
         }
+        for (Integer i : homeTOWNtoVIST){
+            System.out.print(i+" ");
+        }
+        System.out.println();
     }
 
     public static int homeTownFeasableNew(Umpire u){
         int numToGoTo = 0;
         for (int i=0; i<nteams; i++){
             if (u.homeTownVisit.get(i) == 0) {
-                if (homeTOWNtoVIST.get(i) == 0) return 99999;
+                if (homeTOWNtoVIST.get(i) == 0){
+                    return 99999;
+                }
                 numToGoTo++;
             }
             //check if different visits are not in the same round!!!!!!!
@@ -401,7 +407,7 @@ public class Main {
         if (u==nteams/2-1) rp++;
         ArrayList<Edge> A = sortedFeasable(umpires.get(u).schedule.get(r-1).edges, umpires.get(u), umpires);
         for (Edge e: A){
-            umpires.get(u).addGameToSchedule(e.destination, e.distance);
+            umpires.get(u).addGameToSchedule(e.destination, e.distance, false);
             edges.add(e);
             if (rp!=r+1){
                 if (homeTownFeasableNew(umpires.get(u))<=(nteams*2-2)-r){
@@ -414,7 +420,7 @@ public class Main {
                 //add to array solution
                 solution.put(new ArrayList<Edge>(edges), sumUmpires(umpires));
             }
-            umpires.get(u).removeFromSchedule(e.destination, e.distance);
+            umpires.get(u).removeFromSchedule(e.destination, e.distance, false);
             edges.remove(e);
         }
         return solution;
@@ -427,7 +433,7 @@ public class Main {
         if (u==nteams/2-1) rp++;
         ArrayList<Edge> A = skeresortedFeasable(umpires.get(u).schedule.get(r-ir).edges, umpires.get(u), umpires, r-ir);
         for (Edge e: A){
-            umpires.get(u).addGameToSchedule(e.destination, e.distance);
+            umpires.get(u).addGameToSchedule(e.destination, e.distance, true);
             edges.add(e);
             if (rp!=r+1){
                 if (sumUmpires(umpires)+LB[r+1][rr]+hL(umpires, u, r)<=S[ir][rr] || S[ir][rr]==0){ //solution
@@ -438,7 +444,7 @@ public class Main {
                 //add to array solution
                 solution.put(new ArrayList<Edge>(edges), sumUmpires(umpires));
             }
-            umpires.get(u).removeFromSchedule(e.destination, e.distance);
+            umpires.get(u).removeFromSchedule(e.destination, e.distance, true);
             edges.remove(e);
         }
         return solution;
@@ -451,7 +457,7 @@ public class Main {
         if (u==nteams/2-1) rp++;
         ArrayList<Edge> A = skeresortedFeasable(umpires.get(u).schedule.get(r-1).edges, umpires.get(u), umpires, r-ir+1);
         for (Edge e: A){
-            umpires.get(u).addGameToSchedule(e.destination, e.distance);
+            umpires.get(u).addGameToSchedule(e.destination, e.distance, true);
             edges.add(e);
             if (rp!=r+1){
                 if (sumSolution()==0 || sumUmpires(umpires)+LB[r][nteams*2-3]+h(umpires, u, r)<=sumSolution()){
@@ -462,7 +468,7 @@ public class Main {
                 //add to array solution
                 solution.put(new ArrayList<Edge>(edges), sumUmpires(umpires));
             }
-            umpires.get(u).removeFromSchedule(e.destination, e.distance);
+            umpires.get(u).removeFromSchedule(e.destination, e.distance, true);
             edges.remove(e);
         }
         return solution;
@@ -576,7 +582,7 @@ public class Main {
                     if (i.get(e.destination.home-1)==assignments[a][1]) theEDGE = ei;
                     ei++;
                 }
-                umpires.get(assignments[a][0]).addGameToSchedule(umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).destination, umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance);
+                umpires.get(assignments[a][0]).addGameToSchedule(umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).destination, umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance, true);
                 if (umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance==Integer.MAX_VALUE) feasable = false;
             }
             if (feasable){
@@ -602,7 +608,7 @@ public class Main {
                     if (i.get(e.destination.home-1)==assignments[a][1]) theEDGE = ei;
                     ei++;
                 }
-                umpires.get(assignments[a][0]).removeFromSchedule(umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).destination, umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance);
+                umpires.get(assignments[a][0]).removeFromSchedule(umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).destination, umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance, true);
             }
         }
     }
@@ -631,7 +637,7 @@ public class Main {
             // if (!feasable) continue;
             System.out.println("Heeeeeeeey");
             for (int u=0; u<nteams/2; u++){
-                umpires.get(u).addGameToSchedule(e.get(u).destination, e.get(u).distance);
+                umpires.get(u).addGameToSchedule(e.get(u).destination, e.get(u).distance, true);
             }
             if (r+1!=nteams*2-2){
                 System.out.println("OOOOOOOOOOOOOOOOOOO");
@@ -652,7 +658,7 @@ public class Main {
                 // else return !!! make sure they get unassigned !!!
             }
             for (int u=0; u<nteams/2; u++){
-                umpires.get(u).removeFromSchedule(e.get(u).destination, e.get(u).distance);
+                umpires.get(u).removeFromSchedule(e.get(u).destination, e.get(u).distance, true);
             }
         }
     }
@@ -663,7 +669,7 @@ public class Main {
         //if (!checkForBetterSolution(umpires, false)) return;
         for (ArrayList<Edge> e: A){
             for (int u=0; u<nteams/2; u++){
-                umpires.get(u).addGameToSchedule(e.get(u).destination, e.get(u).distance);
+                umpires.get(u).addGameToSchedule(e.get(u).destination, e.get(u).distance, false);
             }
             if (r+1!=nteams*2-2){
                 if (sumUmpires(umpires)+LB[r][nteams*2-3]<=sumSolution() || sumSolution()==0){
@@ -681,7 +687,7 @@ public class Main {
 //                else System.out.println("Infeasable: "+sumUmpires(umpires));
             }
             for (int u=0; u<nteams/2; u++){
-                umpires.get(u).removeFromSchedule(e.get(u).destination, e.get(u).distance);
+                umpires.get(u).removeFromSchedule(e.get(u).destination, e.get(u).distance, false);
             }
         }
     }
@@ -694,7 +700,7 @@ public class Main {
         ArrayList<Edge> A = sortedFeasable(umpires.get(u).schedule.get(r-1).edges, umpires.get(u), umpires);
         if (!checkForBetterSolution(umpires, false)) return;
         for (Edge e: A){
-            umpires.get(u).addGameToSchedule(e.destination, e.distance);
+            umpires.get(u).addGameToSchedule(e.destination, e.distance, false);
             if (rp!=nteams*2-2){
                 //if (!checkForBetterSolution(umpires, false)) continue;
                 if (homeTownFeasableNew(umpires.get(u))<=(nteams*2-2)-r){
@@ -713,7 +719,7 @@ public class Main {
                 }
 //                else System.out.println("Infeasable: "+sumUmpires(umpires));
             }
-            umpires.get(u).removeFromSchedule(e.destination, e.distance);
+            umpires.get(u).removeFromSchedule(e.destination, e.distance, false);
         }
     }
 
@@ -749,7 +755,7 @@ public class Main {
         ArrayList<Edge> A = skeresortedFeasable(umpires.get(u).schedule.get(r-ir).edges, umpires.get(u), umpires, r-ir);
         for (Edge e: A){
             thisSolution += e.distance;
-            umpires.get(u).addGameToSchedule(e.destination, e.distance);
+            umpires.get(u).addGameToSchedule(e.destination, e.distance, true);
             if (rp!=rr){
                 //if (!checkForBetterSolution(umpires, false)) continue;
                 if (thisSolution + LB[r+1][rr] /*+ h(umpires, u, r)*/ <= S[ir][rr] || S[ir][rr]==0)
@@ -762,7 +768,7 @@ public class Main {
                 }
             }
             thisSolution -= e.distance;
-            umpires.get(u).removeFromSchedule(e.destination, e.distance);
+            umpires.get(u).removeFromSchedule(e.destination, e.distance, true);
         }
     }
 
@@ -772,7 +778,7 @@ public class Main {
         //if (!checkForBetterSolution(umpires, false)) return;
         for (ArrayList<Edge> e: A){
             for (int u=0; u<nteams/2; u++){
-                umpires.get(u).addGameToSchedule(e.get(u).destination, e.get(u).distance);
+                umpires.get(u).addGameToSchedule(e.get(u).destination, e.get(u).distance, true);
                 thisSolution += e.get(u).distance;
             }
             if (r+1!=rr){
@@ -787,7 +793,7 @@ public class Main {
                 }
             }
             for (int u=0; u<nteams/2; u++){
-                umpires.get(u).removeFromSchedule(e.get(u).destination, e.get(u).distance);
+                umpires.get(u).removeFromSchedule(e.get(u).destination, e.get(u).distance, true);
                 thisSolution -= e.get(u).distance;
             }
         }
@@ -802,7 +808,7 @@ public class Main {
         ArrayList<Umpire> umpireGang = new ArrayList<>();
         for (int u=0; u<nteams/2; u++){
             umpireGang.add(new Umpire(9999));
-            umpireGang.get(u).addGameToSchedule(new Game (roundgames.get(u)), 0);
+            umpireGang.get(u).addGameToSchedule(new Game (roundgames.get(u)), 0, true);
         }
         //System.out.println("Start Matchbound: "+round+" - "+maxround);
         if (!fancyLB) MatchBound(umpireGang, 0, round, round, maxround, 0);
@@ -994,12 +1000,12 @@ public class Main {
         }
         else {
             startTime = System.currentTimeMillis();
-            instanceName = "umps18";
+            instanceName = "umps14";
             tournament = makeTournament("instances/"+instanceName+".txt");
-            q1 = 7;
-            q2 = 4;
-            method = "BranchBound";
-//            method = "RoundBound";
+            q1 = 8;
+            q2 = 3;
+//            method = "BranchBound";
+            method = "RoundBound";
 //            method = "HungarianRound";
 //            method = "GlobalRoundBound";
             parallel = true;
@@ -1020,7 +1026,7 @@ public class Main {
             umpires.add(new Umpire(i));
         }
         for (int g=0; g<nteams/2; g++){
-            umpires.get(g).addGameToSchedule(tournament.get(g), 0);
+            umpires.get(g).addGameToSchedule(tournament.get(g), 0, false);
         }
         try{
             String fname = "increment_"+instanceName+"_"+q1+"_"+q2+"_"+method+"_"+parallel+".txt";

@@ -26,18 +26,18 @@ public class Umpire {
         this.distance = umpire.distance;
     }
 
-    public void addGameToSchedule(Game g, int distance){
+    public void addGameToSchedule(Game g, int distance, boolean LB){
         schedule.add(g);
         this.distance += distance;
         homeTownVisit.set(g.home-1, homeTownVisit.get(g.home-1)+1);
-        Main.homeTOWNtoVIST.set(g.home-1, Main.homeTOWNtoVIST.get(g.home-1)-1);
+        if (!LB) Main.homeTOWNtoVIST.set(g.home-1, Main.homeTOWNtoVIST.get(g.home-1)-1);
     }
 
-    public void removeFromSchedule(Game g, int distance){
+    public void removeFromSchedule(Game g, int distance, boolean LB){
         schedule.remove(g);
         this.distance -= distance;
         homeTownVisit.set(g.home-1, homeTownVisit.get(g.home-1)-1);
-        Main.homeTOWNtoVIST.set(g.home-1, Main.homeTOWNtoVIST.get(g.home-1)+1);
+        if (!LB) Main.homeTOWNtoVIST.set(g.home-1, Main.homeTOWNtoVIST.get(g.home-1)+1);
     }
 
     @Override
