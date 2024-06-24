@@ -2,19 +2,16 @@ import java.io.*;
 import java.util.*;
 
 public class Main {
-    static int q1 = 6;
-    static int q2 = 3;
+    static int q1;
+    static int q2;
     static int nteams;
     static List<Umpire> solution = Collections.synchronizedList(new ArrayList<>());
     static ArrayList<Game> tournament = new ArrayList<>();
-    //static int[] matchSolutions;
     static int[][] S;
     static int[][] LB;
-    //static ArrayList<Umpire> umpires = new ArrayList<>();
     static boolean solutionfound = false;
     static long nodeCount = 0;
     static long EffectiveNodeCount = 0;
-    static boolean verbose = true;
     static long startTime;
     static String method;
     static String instanceName;
@@ -23,9 +20,11 @@ public class Main {
     static boolean hungarian;
     static boolean partialLB;
     static boolean useOldLBs;
+    static boolean hash;
     static ArrayList<ArrayList<Edge>>[] UpperA;
     static ArrayList<ArrayList<Integer>> DDDistance = new ArrayList<>();
     static ArrayList<Integer> homeTOWNtoVIST = new ArrayList<>();
+    static HashMap<String, Integer> partialMatchingList = new HashMap<>();
 
     private static ArrayList<Game> makeTournament(String fileName){
         InputReader inputReader = new InputReader(fileName);
@@ -62,11 +61,6 @@ public class Main {
         for (int i=0; i<nteams*2-2; i++){
             DDDistance.add(new ArrayList<>());
         }
-//        for(Game g: tournament){
-//            for (Edge e: g.edges){
-//                DDDistance.get(g.round).add(e.distance);
-//            }
-//        }
         for(Game g: tournament){
             Collections.sort(g.edges, Comparator.comparingInt(Edge::getDistance));
             if (g.edges.size()==0){
@@ -77,21 +71,6 @@ public class Main {
             DDDistance.get(g.round).add(g.edges.get(0).distance);
         }
         //sort distances
-//        for (int i=1; i<nteams*2-2; i++){
-//            DDDistance.get(i).stream().sorted();
-//        }
-        for (ArrayList<Integer> list : DDDistance) {
-            Collections.sort(list);
-        }
-        System.out.println("Completed");
-    }
-
-    public static void calculatePartialHungarian(){
-        // one arraylist for every round
-        for (int i=0; i<nteams*2-2; i++){
-            List<Game> games = tournament.subList(i*nteams/2, (i+1)*nteams/2);
-            DDDistance.add(hList(games, i+1));
-        }
         for (ArrayList<Integer> list : DDDistance) {
             Collections.sort(list);
         }
@@ -145,7 +124,7 @@ public class Main {
         return feasable;
     }
 
-    public static boolean skereisFeasable(Game game, Umpire umpire, ArrayList<Umpire> umpires, int round){
+    public static boolean isFeasableNotR0(Game game, Umpire umpire, ArrayList<Umpire> umpires, int round){
         round++;
         boolean feasable = true;
         int c1 = q1;
@@ -190,10 +169,10 @@ public class Main {
         return sortedGames; //returns null if no feasable solutions are found
     }
 
-    public static ArrayList<Edge> skeresortedFeasable(ArrayList<Edge> edges, Umpire umpire, ArrayList<Umpire> umpires, int round){
+    public static ArrayList<Edge> sortedFeasableNotR0(ArrayList<Edge> edges, Umpire umpire, ArrayList<Umpire> umpires, int round){
         ArrayList<Edge> sortedGames = new ArrayList<>();
         for(Edge e: edges){
-            if (!skereisFeasable(e.destination, umpire, umpires, round)) continue;
+            if (!isFeasableNotR0(e.destination, umpire, umpires, round)) continue;
             sortedGames.add(e);
         }
 //        Collections.sort(sortedGames, Comparator.comparingInt(Edge::getDistance));
@@ -224,10 +203,6 @@ public class Main {
         for (Game g: tournament){
             homeTOWNtoVIST.set(g.home-1, homeTOWNtoVIST.get(g.home-1)+1);
         }
-//        for (Integer i : homeTOWNtoVIST){
-//            System.out.print(i+" ");
-//        }
-//        System.out.println();
     }
 
     public static int homeTownFeasableNew(Umpire u){
@@ -242,20 +217,6 @@ public class Main {
             //check if different visits are not in the same round!!!!!!!
         }
         return numToGoTo;
-    }
-
-    public static void fairtry(ArrayList<Umpire> umpires){
-        for (int h=1; h<nteams*2-2; h++){
-            for (Umpire u: umpires){
-                Edge coolestEdge = chooseSmallestFeasable(u.schedule.get(h-1).edges, u, umpires);
-                if (coolestEdge == null){
-                    System.out.println("Sad life");
-                    writeToFile(umpires);
-                    return;
-                }
-                u.schedule.add(coolestEdge.destination);
-            }
-        }
     }
 
     public static boolean checkForBetterSolution(ArrayList<Umpire> umpires, boolean v){
@@ -329,11 +290,6 @@ public class Main {
         HungarianAlgorithm hungarianAlgorithm = new HungarianAlgorithm();
         int[][] assignments = hungarianAlgorithm.computeAssignments(distances);
         for (int h=0; h<assignments.length; h++){
-//            for (int g=0; g<assignments[0].length; g++){
-//                System.out.print(assignments[h][g]+" ");
-//            }
-//            System.out.println();
-//            System.out.println(newdistances[assignments[h][0]][assignments[h][1]]);
             hList.add(newdistances[assignments[h][0]][assignments[h][1]]);
         }
         return hList;
@@ -342,12 +298,12 @@ public class Main {
     public static int h(ArrayList<Umpire> umpires, int u, int r){
         if (!hungarian) return 0;
         if (partialLB) return hL(umpires, u, r);
+        if (hash && partialMatchingList.containsKey(r+"_"+u)) return partialMatchingList.get(r+"_"+u);
         if (nteams/2==u+1) return 0;
         int [] visited = new int[nteams];
         for (int a=0; a<=u; a++){
             visited[umpires.get(a).schedule.get(r).home-1] = 1;
         }
-//        System.out.println("distance.length: "+(nteams/2-u-1));
         int [][] distances = new int[nteams/2-u-1][nteams/2-u-1];
         for (int ss1=0; ss1<nteams/2-u-1; ss1++){
             for (int ss2=0; ss2<nteams/2-u-1; ss2++){
@@ -359,13 +315,10 @@ public class Main {
         for (int a=u+1; a<nteams/2; a++){
             boolean dirty = false;
             for (Edge e: umpires.get(a).schedule.get(r-1).edges){
-//                System.out.println(e.destination.home-1);
                 if (visited[e.destination.home-1]==1) continue;
                 if (!i.containsKey(e.destination.home-1)){
                     i.put(e.destination.home-1, startIndex++);
-//                    System.out.println("put: "+i.get(e.destination.home-1));
                 }
-//                System.out.println("distances["+(a-u-1)+"]["+i.get(e.destination.home-1)+"] = "+e.distance);
                 if (isFeasable(e.destination, umpires.get(a), umpires)){
                     distances[a-u-1][i.get(e.destination.home-1)] = e.distance;
                     dirty = true;
@@ -380,27 +333,21 @@ public class Main {
                 newdistances[h][g] = distances[h][g];
             }
         }
-//        Hungarian hungarian = new Hungarian(new int[][]{distances});
         HungarianAlgorithm hungarianAlgorithm = new HungarianAlgorithm();
-        //int [] assignment = hungarian.findOptimalAssignment();
         int[][] assignments = hungarianAlgorithm.computeAssignments(distances);
-//        System.out.println("Array: ");
         int sum = 0;
         for (int h=0; h<assignments.length; h++){
             for (int g=0; g<assignments[0].length; g++){
-//                System.out.print(assignments[h][g]+" ");
             }
-//            System.out.println();
         }
         for (int l=0; l<assignments.length; l++){
-//            System.out.println("distances: "+newdistances[assignments[l][0]][assignments[l][1]]);//0!
             sum += newdistances[assignments[l][0]][assignments[l][1]];//0!
         }
-//        System.out.println("sum: "+sum);
+        partialMatchingList.put(r+"_"+u, sum);
         return sum;
     }
 
-    public static HashMap<ArrayList<Edge>, Integer> jamesBound(ArrayList<Umpire> umpires, int u, int r, HashMap<ArrayList<Edge>, Integer> solution, ArrayList<Edge> edges){
+    public static HashMap<ArrayList<Edge>, Integer> singleRound(ArrayList<Umpire> umpires, int u, int r, HashMap<ArrayList<Edge>, Integer> solution, ArrayList<Edge> edges){
         nodeCount++;
         int up = ((u+1)%(nteams/2));
         int rp = r;
@@ -412,7 +359,7 @@ public class Main {
             if (rp!=r+1){
                 if (homeTownFeasableNew(umpires.get(u))<=(nteams*2-2)-r){
                     if (sumSolution()==0 || sumUmpires(umpires)+LB[r][nteams*2-3]+h(umpires, u, r)<=sumSolution()){
-                        solution = jamesBound(umpires, up, rp, solution, edges);
+                        solution = singleRound(umpires, up, rp, solution, edges);
                     }
                 }
             }
@@ -426,42 +373,18 @@ public class Main {
         return solution;
     }
 
-    public static HashMap<ArrayList<Edge>, Integer> jBound(ArrayList<Umpire> umpires, int u, int r, int ir, int rr, HashMap<ArrayList<Edge>, Integer> solution, ArrayList<Edge> edges){
+    public static HashMap<ArrayList<Edge>, Integer> singleRoundNotR0(ArrayList<Umpire> umpires, int u, int r, int ir, int rr, HashMap<ArrayList<Edge>, Integer> solution, ArrayList<Edge> edges){
         nodeCount++;
         int up = ((u+1)%(nteams/2));
         int rp = r;
         if (u==nteams/2-1) rp++;
-        ArrayList<Edge> A = skeresortedFeasable(umpires.get(u).schedule.get(r-ir).edges, umpires.get(u), umpires, r-ir);
+        ArrayList<Edge> A = sortedFeasableNotR0(umpires.get(u).schedule.get(r-ir).edges, umpires.get(u), umpires, r-ir);
         for (Edge e: A){
             umpires.get(u).addGameToSchedule(e.destination, e.distance, true);
             edges.add(e);
             if (rp!=r+1){
                 if (sumUmpires(umpires)+LB[r+1][rr]+hL(umpires, u, r)<=S[ir][rr] || S[ir][rr]==0){ //solution
-                    solution = jBound(umpires, up, rp, ir, rr, solution, edges); //solution!!
-                }
-            }
-            else{
-                //add to array solution
-                solution.put(new ArrayList<Edge>(edges), sumUmpires(umpires));
-            }
-            umpires.get(u).removeFromSchedule(e.destination, e.distance, true);
-            edges.remove(e);
-        }
-        return solution;
-    }
-
-    public static HashMap<ArrayList<Edge>, Integer> GlobaljamesBound(ArrayList<Umpire> umpires, int u, int r, int ir, int rr, HashMap<ArrayList<Edge>, Integer> solution, ArrayList<Edge> edges){
-        nodeCount++;
-        int up = ((u+1)%(nteams/2));
-        int rp = r;
-        if (u==nteams/2-1) rp++;
-        ArrayList<Edge> A = skeresortedFeasable(umpires.get(u).schedule.get(r-1).edges, umpires.get(u), umpires, r-ir+1);
-        for (Edge e: A){
-            umpires.get(u).addGameToSchedule(e.destination, e.distance, true);
-            edges.add(e);
-            if (rp!=r+1){
-                if (sumSolution()==0 || sumUmpires(umpires)+LB[r][nteams*2-3]+h(umpires, u, r)<=sumSolution()){
-                    solution = GlobaljamesBound(umpires, up, rp, ir, rr, solution, edges);
+                    solution = singleRoundNotR0(umpires, up, rp, ir, rr, solution, edges); //solution!!
                 }
             }
             else{
@@ -475,7 +398,7 @@ public class Main {
     }
 
     public static ArrayList<ArrayList<Edge>> sortedPossibleSolutions(ArrayList<Umpire> umpires, int r){
-        HashMap<ArrayList<Edge>, Integer> solution = jamesBound(umpires, 0, r, new HashMap<>(), new ArrayList<>());
+        HashMap<ArrayList<Edge>, Integer> solution = singleRound(umpires, 0, r, new HashMap<>(), new ArrayList<>());
         // Create a list to hold the sorted keys
         ArrayList<ArrayList<Edge>> sortedKeys = new ArrayList<>();
 
@@ -491,15 +414,11 @@ public class Main {
         for (Map.Entry<ArrayList<Edge>, Integer> entry : list) {
             sortedKeys.add(entry.getKey());
         }
-//        System.out.println("Sorted keys based on values:");
-//        for (ArrayList<Edge> key : sortedKeys) {
-//            System.out.println(key + " -> " + solution.get(key));
-//        }
         return sortedKeys;
     }
 
     public static ArrayList<ArrayList<Edge>> skereSortedPossibleSolutions(ArrayList<Umpire> umpires, int r, int ir, int rr){
-        HashMap<ArrayList<Edge>, Integer> solution = jBound(umpires, 0, r, ir, rr, new HashMap<>(), new ArrayList<>());
+        HashMap<ArrayList<Edge>, Integer> solution = singleRoundNotR0(umpires, 0, r, ir, rr, new HashMap<>(), new ArrayList<>());
         // Create a list to hold the sorted keys
         ArrayList<ArrayList<Edge>> sortedKeys = new ArrayList<>();
 
@@ -517,110 +436,6 @@ public class Main {
         return sortedKeys;
     }
 
-    public static ArrayList<ArrayList<Edge>> GlobalsortedPossibleSolutions(ArrayList<Umpire> umpires, int r){
-        HashMap<ArrayList<Edge>, Integer> solution = GlobaljamesBound(umpires, 0, r, r, r+1, new HashMap<>(), new ArrayList<>());
-        // Create a list to hold the sorted keys
-        ArrayList<ArrayList<Edge>> sortedKeys = new ArrayList<>();
-
-        // Sort the HashMap by values
-        List<Map.Entry<ArrayList<Edge>, Integer>> list = new LinkedList<>(solution.entrySet());
-        Collections.sort(list, new Comparator<Map.Entry<ArrayList<Edge>, Integer>>() {
-            public int compare(Map.Entry<ArrayList<Edge>, Integer> o1, Map.Entry<ArrayList<Edge>, Integer> o2) {
-                return (o1.getValue()).compareTo(o2.getValue());
-            }
-        });
-        for (Map.Entry<ArrayList<Edge>, Integer> entry : list) {
-            sortedKeys.add(entry.getKey());
-        }
-        return sortedKeys;
-    }
-
-    public static void HungarianRound(ArrayList<Umpire> umpires, int r){
-        //make distanceMatrix + translator
-        int[][] distanceMatrix = new int[umpires.size()][umpires.size()];
-        //initialise on MaxInt
-        for (int a=0; a<umpires.size(); a++){
-            for (int b=0; b<umpires.size(); b++){
-                distanceMatrix[a][b] = Integer.MAX_VALUE;
-            }
-        }
-        //Fill in distances
-        int startIndex = 0;
-        Map<Integer, Integer> i = new HashMap<>();
-        for (int a=0; a<nteams/2; a++){
-            boolean dirty = false;
-            for (Edge e: umpires.get(a).schedule.get(r-1).edges){
-                if (!i.containsKey(e.destination.home-1)){
-                    i.put(e.destination.home-1, startIndex++);
-                }
-                distanceMatrix[a][i.get(e.destination.home-1)] = e.distance;
-                dirty = true;
-            }
-            if (!dirty) return;
-        }
-        //Put constraints to MaxInt
-        for (int u=0; u<umpires.size(); u++){
-            for (Edge e: umpires.get(u).schedule.get(r-1).edges){
-                if (!isFeasable(e.destination, umpires.get(u), umpires)) distanceMatrix[u][i.get(e.destination.home-1)] = Integer.MAX_VALUE;
-            }
-        }
-        HungarianAlgorithm hungarianAlgorithm = new HungarianAlgorithm();
-        //while true????
-        boolean feasable = true;
-        while (feasable){
-            int [][] newdistances = new int[nteams/2][nteams/2];
-            for (int h=0; h<distanceMatrix.length; h++){
-                for (int g=0; g<distanceMatrix.length; g++){
-                    newdistances[h][g] = distanceMatrix[h][g];
-                }
-            }
-            int[][] assignments = hungarianAlgorithm.computeAssignments(newdistances);
-            for (int a=0; a<assignments.length; a++){
-                int theEDGE = 0;
-                int ei = 0;
-                for (Edge e: umpires.get(assignments[a][0]).schedule.get(r-1).edges){
-                    if (i.get(e.destination.home-1)==assignments[a][1]) theEDGE = ei;
-                    ei++;
-                }
-                umpires.get(assignments[a][0]).addGameToSchedule(umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).destination, umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance, true);
-                if (umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance==Integer.MAX_VALUE) feasable = false;
-            }
-            if (feasable){
-                if (r+1!=nteams*2-2){
-                    if (sumUmpires(umpires)+LB[r][nteams*2-3]<=sumSolution() || sumSolution()==0){
-                        HungarianRound(umpires, r+1);
-                    }
-                }
-                else{
-                    if (fullFeasable(umpires) && checkForBetterSolution(umpires, false)){
-                        solution.clear();
-                        for (Umpire ump: umpires){
-                            solution.add(new Umpire(ump));
-                        }
-                        if (verbose) writeToFile(solution);
-                    }
-                }
-            }
-            for (int a=0; a<assignments.length; a++){
-                int theEDGE = 0;
-                int ei = 0;
-                for (Edge e: umpires.get(assignments[a][0]).schedule.get(r-1).edges){
-                    if (i.get(e.destination.home-1)==assignments[a][1]) theEDGE = ei;
-                    ei++;
-                }
-                umpires.get(assignments[a][0]).removeFromSchedule(umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).destination, umpires.get(assignments[a][0]).schedule.get(r-1).edges.get(theEDGE).distance, true);
-            }
-        }
-    }
-
-    public static void CalculateGlobalRound(ArrayList<Umpire> umpires){
-        //make datastructure
-        UpperA = new ArrayList[nteams*2-2];
-        //for (calculate all rounds)
-        for (int a=0; a<nteams*2-3; a++) { //probably nteams*2-3 or nteams*2-4
-            UpperA[a] = GlobalsortedPossibleSolutions(umpires, a+1);
-        }
-    }
 
     public static boolean checkFeasableRound(ArrayList<Umpire> umpires, ArrayList<Edge> e){
         for (int a=0; a<nteams/2; a++){
@@ -629,42 +444,8 @@ public class Main {
         return true;
     }
 
-    // implement hometown infeasabilities!!!!!!!!!!! => in jamesBound
-    public static void GlobalRoundBound(ArrayList<Umpire> umpires, int r){
-        ArrayList<ArrayList<Edge>> A = UpperA[r-1];
-        for (ArrayList<Edge> e: A){
-            if (!checkFeasableRound(umpires, e)) continue;
-            // if (!feasable) continue;
-            System.out.println("Heeeeeeeey");
-            for (int u=0; u<nteams/2; u++){
-                umpires.get(u).addGameToSchedule(e.get(u).destination, e.get(u).distance, true);
-            }
-            if (r+1!=nteams*2-2){
-                System.out.println("OOOOOOOOOOOOOOOOOOO");
-                if (sumUmpires(umpires)+LB[r][nteams*2-3]<=sumSolution() || sumSolution()==0){
-                    GlobalRoundBound(umpires, r+1);
-                }
-                // else return !!! make sure they get unassigned !!!
-            }
-            else{
-                System.out.println("Feasable???");
-                if (true || fullFeasable(umpires) && checkForBetterSolution(umpires, false)){
-                    solution.clear();
-                    for (Umpire ump: umpires){
-                        solution.add(new Umpire(ump));
-                    }
-                    if (verbose) writeToFile(solution);
-                }
-                // else return !!! make sure they get unassigned !!!
-            }
-            for (int u=0; u<nteams/2; u++){
-                umpires.get(u).removeFromSchedule(e.get(u).destination, e.get(u).distance, true);
-            }
-        }
-    }
-
     public static void RoundBound(ArrayList<Umpire> umpires, int r){
-        EffectiveNodeCount += 4;
+        EffectiveNodeCount += nteams/2;
         ArrayList<ArrayList<Edge>> A = sortedPossibleSolutions(umpires, r);
         //if (!checkForBetterSolution(umpires, false)) return;
         for (ArrayList<Edge> e: A){
@@ -682,7 +463,7 @@ public class Main {
                     for (Umpire ump: umpires){
                         solution.add(new Umpire(ump));
                     }
-                    if (verbose) writeToFile(solution);
+                    writeToFile(solution);
                 }
 //                else System.out.println("Infeasable: "+sumUmpires(umpires));
             }
@@ -715,44 +496,19 @@ public class Main {
                     for (Umpire ump: umpires){
                         solution.add(new Umpire(ump));
                     }
-                    if (verbose) writeToFile(solution);
+                    writeToFile(solution);
                 }
-//                else System.out.println("Infeasable: "+sumUmpires(umpires));
             }
             umpires.get(u).removeFromSchedule(e.destination, e.distance, false);
         }
     }
-
-//    public static void MatchBound0(ArrayList<Game> roundgames, int u, int r, int rr, int thisSolution){
-//        int up = ((u+1)%(nteams/2));
-//        int rp = r;
-//        if (u==nteams/2-1) rp++;
-//        //constraint checkers up to a certain round? => work with roundgames! but with adapted u
-//        for (Edge e: roundgames.get(r*nteams/2+u).edges){
-//            thisSolution += e.distance;
-//            if (rp!=rr){
-//                //if (!checkForBetterSolution(umpires, false)) continue;
-//                MatchBound(roundgames, up, rp, rr, thisSolution);
-//            }
-//            else{
-//                if (thisSolution < S[r][rr] || S[r][rr]==0){
-//                    S[r][rr] = thisSolution;
-//                    System.out.println("ThisSolution: "+thisSolution);
-//                }
-//            }
-//            thisSolution -= e.distance;
-//        }
-//    }
 
     public static void MatchBound(ArrayList<Umpire> umpires, int u, int r, int ir, int rr, int thisSolution){
         if (solutionfound) return;
         int up = ((u+1)%(nteams/2));
         int rp = r;
         if (u==nteams/2-1) rp++;
-        //constraint checkers up to a certain round? => work with roundgames! but with adapted u
-        //if (thisSolution + S[r][rr] > S[ir][rr] && S[ir][rr]!=0) return;
-        //if (thisSolution >= S[ir][rr] && S[ir][rr]!=0) return;
-        ArrayList<Edge> A = skeresortedFeasable(umpires.get(u).schedule.get(r-ir).edges, umpires.get(u), umpires, r-ir);
+        ArrayList<Edge> A = sortedFeasableNotR0(umpires.get(u).schedule.get(r-ir).edges, umpires.get(u), umpires, r-ir);
         for (Edge e: A){
             thisSolution += e.distance;
             umpires.get(u).addGameToSchedule(e.destination, e.distance, true);
@@ -764,7 +520,6 @@ public class Main {
             else{
                 if (thisSolution < S[ir][rr] || S[ir][rr]==0){
                     S[ir][rr] = thisSolution;
-                    //if (verbose) System.out.println("ThisSolution: "+thisSolution);
                 }
             }
             thisSolution -= e.distance;
@@ -775,7 +530,6 @@ public class Main {
     public static void MatchRound(ArrayList<Umpire> umpires, int r, int ir, int rr, int thisSolution){
         if (solutionfound) return;
         ArrayList<ArrayList<Edge>> A = skereSortedPossibleSolutions(umpires, r, ir, rr);
-        //if (!checkForBetterSolution(umpires, false)) return;
         for (ArrayList<Edge> e: A){
             for (int u=0; u<nteams/2; u++){
                 umpires.get(u).addGameToSchedule(e.get(u).destination, e.get(u).distance, true);
@@ -789,7 +543,6 @@ public class Main {
             else{
                 if (thisSolution < S[ir][rr] || S[ir][rr]==0){
                     S[ir][rr] = thisSolution;
-                    //if (verbose) System.out.println("ThisSolution: "+thisSolution);
                 }
             }
             for (int u=0; u<nteams/2; u++){
@@ -799,8 +552,6 @@ public class Main {
         }
     }
 
-
-    //precalculate every matching? 2 layers deep?
     public static void calculateMatching(int round, int maxround){
         //use BranchBound to calculate for this round => make sure the edges of the second round are put to 0
         List<Game> roundlist = tournament.subList(round*nteams/2, maxround*nteams/2);
@@ -820,35 +571,8 @@ public class Main {
         LB = new int[nteams * 2 - 2][nteams * 2 - 2];
     }
 
-    public static void falseCalculateLBs(){
-        S = new int[nteams*2-2][nteams*2-2];
-        LB = new int[nteams*2-2][nteams*2-2];
-        for (int r=nteams*2-4; r>1; r--){
-            if (S[r][r+1] == 0) calculateMatching(r, r+1);
-            //S[r][r+1] = 0; //value of matching between rounds r and r+1 => solution => games??//tournament??
-            for (int r2=r+1; r2<nteams*2-3; r2++){
-                LB[r][r2] = S[r][r+1] + LB[r+1][r2];
-            }
-        }
-        for (int k=1; k<nteams*2-4; k++){
-            int r = nteams*2-3-k;
-            while (r>=0){
-                for (int rr=r+k-2; rr > r+1; rr--){
-                    if (S[rr][r+k] == 0) calculateMatching(rr, r+k);
-                    for (int r1 = rr; r1>0; r1--){
-                        for (int r2 = r+k; r2 < nteams*2-3; r2++){
-                            LB[r1][r2] = Math.max(LB[r1][r2], LB[r1][rr]+S[rr][r+k]+LB[r+k][r2]);
-                        }
-                    }
-                }
-                r -= k;
-            }
-        }
-    }
 
     public static void CalculateLBs(){
-//        S = new int[nteams*2-2][nteams*2-2];
-//        LB = new int[nteams*2-2][nteams*2-2];
         for (int r=nteams*2-4; r>-1; r--){
             if (S[r][r+1] == 0) calculateMatching(r, r+1);
             //S[r][r+1] = 0; //value of matching between rounds r and r+1 => solution => games??//tournament??
@@ -939,23 +663,6 @@ public class Main {
         }
     }
 
-    public static void CalculateWeakLBs(){
-//        S = new int[nteams*2-2][nteams*2-2];
-//        LB = new int[nteams*2-2][nteams*2-2];
-        for (int r=nteams*2-4; r>-1; r--){
-            if (S[r][r+1] == 0) calculateMatching(r, r+1);
-        }
-        for (int r=nteams*2-4; r>-1; r--){
-            LB[r][nteams*2-3] = S[r][r+1] + LB[r+1][nteams*2-3];
-        }
-        for (int a= 0; a < LB.length; a++){
-            for (int b= 0; b < LB.length; b++){
-                System.out.print(LB[a][b]+" ");
-            }
-            System.out.println();
-        }
-    }
-
     public static void writeToFile(List<Umpire> umpires){
         try {
             FileWriter writer = new FileWriter("solution_"+instanceName+"_"+q1+"_"+q2+".txt");
@@ -982,43 +689,24 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        // java Main instances/umps8.txt umps8 q1 q2 branchBound/roundBound parallel fancyLB
+        // java Main instances/umps8.txt umps8 q1 q2
         int boostsln = 0;
-        if (args.length == 11){
+        if (args.length == 4){
             startTime = System.currentTimeMillis();
             tournament = makeTournament(args[0]);
             instanceName = args[1];
             q1 = Integer.parseInt(args[2]);
             q2 = Integer.parseInt(args[3]);
-            method = args[4];
-            parallel = !Objects.equals(args[5], "false");
-            fancyLB = !Objects.equals(args[6], "classic");
-            hungarian = Objects.equals(args[7], "hungarian");
-            partialLB = Objects.equals(args[8], "partialLB");
-            boostsln = Integer.parseInt(args[9]);
-            useOldLBs = Objects.equals(args[10], "oldLB");
+            method = "RoundBound";
+            parallel = true;
+            fancyLB = true;
+            hungarian = true;
+            partialLB = true;
+            useOldLBs = false;
+            hash = false;
         }
         else {
-            startTime = System.currentTimeMillis();
-            instanceName = "umps16";
-            tournament = makeTournament("instances/"+instanceName+".txt");
-            q1 = 8;
-            q2 = 3;
-//            method = "BranchBound";
-            method = "RoundBound";
-//            method = "HungarianRound";
-//            method = "GlobalRoundBound";
-            parallel = true;
-//            parallel = false;
-            fancyLB = true;
-//            fancyLB = false;
-            hungarian = true;
-//            hungarian = false;
-            partialLB = true;
-//            partialLB = false;
-//            boostsln = 161999;
-//            useOldLBs = true;
-            useOldLBs = false;
+            System.out.println("java Main <instance_file> <umpsN> <q1> <q2>");
         }
         fillHomeTOWNtoVISIT();
         ArrayList<Umpire> umpires = new ArrayList<>();
@@ -1036,8 +724,7 @@ public class Main {
             FileWriter write = new FileWriter("incrementLB_"+instanceName+"_"+q1+"_"+q2+"_"+hungarian+"_"+partialLB+".txt");
             write.close();
         } catch (IOException e) {System.err.println("Error writing to the file: " + e.getMessage());}
-//        calculatePartialBounds();
-        calculatePartialHungarian();
+        calculatePartialBounds();
         boostSolution(boostsln);
         iniatiliseCalculateLBs();
         if (useOldLBs) readOldLBs();
@@ -1046,48 +733,25 @@ public class Main {
             lbt.start();
         }
         if (!parallel) CalculateLBs();
-        //long BBstartTime = System.currentTimeMillis();
         if (Objects.equals(method, "BranchBound")) BranchBound(umpires, 0, 1);
         if (Objects.equals(method, "RoundBound")) RoundBound(umpires, 1);
-        if (Objects.equals(method, "HungarianRound")) HungarianRound(umpires, 1);
-        if (Objects.equals(method, "GlobalRoundBound")) {
-            CalculateGlobalRound(umpires);
-            GlobalRoundBound(umpires, 1);
-        }
-//        ArrayList<Umpire> umpires1 = new ArrayList<>();
-//        ArrayList<Umpire> umpires2 = new ArrayList<>();
-//        for (Umpire u: umpires){
-//            umpires1.add(new Umpire(u));
-//            umpires2.add(new Umpire(u));
-//        }
-//        BBThread bbt = new BBThread(umpires1);
-//        bbt.start();
-//        RBThread rbt = new RBThread(umpires2);
-//        rbt.start();
-//        BranchBound(umpires, 0, 1);
         solutionfound = true;
         writeToFile(solution);
         long endTime = System.currentTimeMillis();
         System.out.println("Total time: " + (endTime-startTime)/1000.0 + " s");
-        //System.out.println("Preprocessing time: " + (BBstartTime-startTime)/1000.0 + " s");
-        //System.out.println("BranchBound time: " + (endTime-BBstartTime)/1000.0 + " s");
         System.out.println("NodeCount: "+nodeCount);
         System.out.println("EffectiveNodeCount: "+EffectiveNodeCount);
-        if (verbose){
-            for (int a= 0; a < LB.length; a++){
-                for (int b= 0; b < LB.length; b++){
-                    System.out.print(LB[a][b]+" ");
-                }
-                System.out.println();
+        for (int a= 0; a < LB.length; a++){
+            for (int b= 0; b < LB.length; b++){
+                System.out.print(LB[a][b]+" ");
             }
+            System.out.println();
         }
-        if (verbose){
-            for (int a= 0; a < S.length; a++){
-                for (int b= 0; b < S.length; b++){
-                    System.out.print(S[a][b]+" ");
-                }
-                System.out.println();
+        for (int a= 0; a < S.length; a++){
+            for (int b= 0; b < S.length; b++){
+                System.out.print(S[a][b]+" ");
             }
+            System.out.println();
         }
     }
 }
